@@ -36,7 +36,7 @@ jobs:
           secure: true
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: 🚨 GitHub Actions: Build Failed for ${{ github.repository }}
+          subject: "🚨 GitHub Actions: Build Failed for ${{ github.repository }}"
           to: ${{ github.event.pusher.email }}
           from: GitHub Actions <${{ secrets.MAIL_USERNAME }}>
           body: |
