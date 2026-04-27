@@ -1,0 +1,51 @@
+name: CI Build and Notify
+
+# Triggers the workflow on any push or pull request to the main branch
+on:
+  push:
+    branches: [ "main", "master" ]
+jobs:
+  build:
+    name: Build Software
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Sets up the Java environment. 
+      - name: Set up JDK 11 #this one is currently in pom.xml file
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and Test
+        run: mvn -B clean verify
+
+      # ---------------------------------------------------------
+      # EMAIL NOTIFICATION ON FAILURE
+      # ---------------------------------------------------------
+      - name: Send Email Notification on Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: 🚨 GitHub Actions: Build Failed for ${{ github.repository }}
+          to: ${{ github.event.pusher.email }}
+          from: GitHub Actions <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            Hi ${{ github.actor }},
+            
+            The Maven build failed for your recent push to ${{ github.repository }}.
+            
+            Commit: ${{ github.sha }}
+            Branch: ${{ github.ref }}
+            
+            You can view the error logs here:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
