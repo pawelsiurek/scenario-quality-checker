@@ -1,0 +1,21 @@
+#compiled classes and generated file
+target/
+
+#IntelliJ
+#Ignore the IDE project files
+.idea/
+*.iml
+out/
+
+#vscode
+.vscode/
+
+#Windows generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+#Logs and temporary files
+*.log
+*.tmp
+*.temp
