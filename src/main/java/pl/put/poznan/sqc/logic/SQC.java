@@ -1,33 +1,215 @@
 package pl.put.poznan.sqc.logic;
 
-import pl.put.poznan.sqc.model.AnalysisResponse;
-import pl.put.poznan.sqc.model.ResponseStatus;
-import pl.put.poznan.sqc.model.ScenarioWrapper;
+import org.springframework.stereotype.Service;
+import pl.put.poznan.sqc.model.*;
 
-import static java.awt.SystemColor.text;
+import java.util.*;
 
+@Service
 public class SQC {
-    public SQC(){
+    private static final Set<String> keywords = new HashSet<>(Arrays.asList("IF", "ELSE", "FOR EACH"));
+
+    public AnalysisResponse analyze(ScenarioWrapper scenarioWrapper) {
+        List<String> warnings = new ArrayList<>();
+
+        // 1. Normalization & Validation Phase
+        AnalysisResponse normalizationResponse = normalize(scenarioWrapper, warnings);
+        if (normalizationResponse.getStatus() != ResponseStatus.SUCCESS) {
+            return normalizationResponse;
+        }
+
+        Scenario scenario = scenarioWrapper.scenario();
+        ScenarioOptions options = scenarioWrapper.options();
+        Step rootStep = scenario.rootStep();
+
+        // 2. Initialize the Builder (Base state)
+        AnalysisResponse.Builder responseBuilder = AnalysisResponse.builder()
+                .status(ResponseStatus.SUCCESS)
+                .message("Analysis successfully completed");
+
+        // 3. Conditional Computation Phase (The options logic)
+        // Perform computations according to flags. If flag is set to false, return null on place of answer
+        // Check for errors like ELSE without IF or nested block without keyword
+        // I think that it should be allowed for a step with keyword to have no children
+        if (options.includeTotalStepCount()) {
+            responseBuilder.totalStepCount(countTotalSteps(rootStep, warnings));
+        }
+
+        if (options.includeKeywordStepCount()) {
+            responseBuilder.keywordStepCount(countKeywordSteps(rootStep, warnings));
+        }
+
+        if (options.includeStepsWithoutActors()) {
+            List<String> stepsWithoutActors = findStepsWithoutActors(rootStep, warnings);
+            responseBuilder.stepsWithoutActors(stepsWithoutActors);
+        }
+
+        if (options.includeNumberedScenario()) {
+            List<String> textualScenario = generateTextualScenario(rootStep, options.maxDepth(), warnings);
+            responseBuilder.textualScenario(textualScenario);
+        }
+
+        // 4. Build and return the final immutable object!
+        return responseBuilder.warnings(warnings).build();
+    }
+
+    private AnalysisResponse normalize(ScenarioWrapper scenarioWrapper, List<String> warnings) {
+        Scenario scenario = scenarioWrapper.scenario();
+
+        Set<String> validActorsSet = new HashSet<>();
+        List<String> rawActors = new ArrayList<>();
+        rawActors.addAll(scenario.externalActors());
+        rawActors.addAll(scenario.systemActors());
+        for (String actor : rawActors) {
+            if (actor == null) {
+                warnings.add("Encountered an empty or blank actor name. It was ignored.");
+            } else {
+                validActorsSet.add(actor);
+            }
+        }
+        if(validActorsSet.isEmpty()) {
+            return AnalysisResponse.builder().status(ResponseStatus.INPUT_ERROR).message("No actors provided").build();
+        }
+        List<String> validActors = new ArrayList<>(validActorsSet);
+        validActors.sort((a, b) -> Integer.compare(b.length(), a.length()));
+
+        if(scenario.title() == null) {
+            warnings.add("No title provided");
+        }
+
+        Step rootStep = scenario.rootStep();
+        if(rootStep.getText() != null) {
+            warnings.add("Root step should not have text, only substeps");
+        }
+
+        checkSteps(rootStep.getSubSteps(), rootStep, validActors, warnings);
+
+        return AnalysisResponse.builder()
+                .status(ResponseStatus.SUCCESS)
+                .build();
+    }
+
+    private void checkSteps(List<Step> subSteps, Step parentStep, List<String> validActors, List<String> warnings) {
+        Iterator<Step> iterator = subSteps.iterator();
+
+        int i=1;
+        while(iterator.hasNext()) {
+            Step child = iterator.next();
+
+            child.setOrderNumber(parentStep.getOrderNumber()+i+".");
+
+            if(child.getText() == null && child.getSubSteps().isEmpty()) {
+                warnings.add("Removed empty step with no text and children at position "+child.getOrderNumber());
+                iterator.remove();
+                continue;
+            }
+
+            if(child.getText() == null) {
+                warnings.add("Step "+child.getOrderNumber()+" has no text");
+            } else {
+                extractStepFields(child, validActors, warnings);
+            }
+
+            if(!child.getSubSteps().isEmpty() && child.getKeyword() == null) {
+                warnings.add("Step "+child.getOrderNumber()+" has no keyword, but has children");
+            }
+            checkSteps(child.getSubSteps(), child, validActors, warnings);
+
+            i++;
+        }
+
 
     }
 
-    public AnalysisResponse analyze (ScenarioWrapper scenarioWrapper){
-        // First, normalise the parsed json. Specifically, separate textual steps into: keyword, actor and cleanText. No value: null. Mark any errors at this stage
-        // Only the root step is allowed to have no text (shouldnt, but maybe it can)
-        // I think that it should be allowed for a step with keyword to have no children
-        // Check for errors like ELSE without IF
+    private void extractStepFields(Step step, List<String> validActors, List<String> warnings) {
+        String remainingText = step.getText();
 
-        // Second, perform computations according to flags. If flag is set to false, return null on place of answer
+        for(String kw : keywords) {
+            if(remainingText.toUpperCase().startsWith(kw)) {
+                if(remainingText.length() == kw.length()) {
+                    step.setKeyword(kw);
+                    warnings.add("Step "+step.getOrderNumber()+" consists only of keyword");
+                    return;
+                }
+                if(!Character.isLetterOrDigit(remainingText.charAt(kw.length()))) {
+                    step.setKeyword(kw);
+                    remainingText = remainingText.substring(kw.length()).replaceFirst("^[\\p{Punct}\\s]+", "");
+                    if(remainingText.isEmpty()){
+                        warnings.add("Step "+step.getOrderNumber()+" consists only of keyword");
+                        return;
+                    }
+                    break;
+                }
+            }
+        }
 
-        return new AnalysisResponse(
-                ResponseStatus.SUCCESS,
-                "example success message",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
+        for(String actor : validActors) {
+            if(remainingText.toUpperCase().startsWith(actor.toUpperCase())) {
+                if(remainingText.length() == actor.length()) {
+                    step.setActor(actor);
+                    if(step.getKeyword() == null)
+                        warnings.add("Step "+step.getOrderNumber()+" consists only of actor");
+                    else
+                        warnings.add("Step "+step.getOrderNumber()+" consists only of actor and keyword");
+                    return;
+                }
+                if(!Character.isLetterOrDigit(remainingText.charAt(actor.length()))) {
+                    step.setActor(actor);
+                    remainingText = remainingText.substring(actor.length()).replaceFirst("^[\\p{Punct}\\s]+", "");
+                    if(remainingText.isEmpty()){
+                        if(step.getKeyword() == null)
+                            warnings.add("Step "+step.getOrderNumber()+" consists only of actor");
+                        else
+                            warnings.add("Step "+step.getOrderNumber()+" consists only of actor and keyword");
+                        return;
+                    }
+                    break;
+                }
+            }
+        }
+
+        step.setCleanText(remainingText);
+    }
+
+    /**
+     * Counts all steps in the scenario tree (excluding the invisible root step).
+     */
+    private Integer countTotalSteps(Step rootStep, List<String> warnings) {
+        // TODO: Implement recursive counter
+        // Hint: Start at 0, iterate through children, add 1 for each child + child's subSteps
+        return null;
+    }
+
+    /**
+     * Counts only steps that begin with a specific keyword (IF, ELSE, FOR EACH).
+     */
+    private Integer countKeywordSteps(Step rootStep, List<String> warnings) {
+        // TODO: Implement recursive keyword counter
+        // Hint: Check if step.getKeyword() != null
+        return null;
+    }
+
+    /**
+     * Returns a list of order numbers (e.g., ["1.2.", "2."]) for steps that lack an actor.
+     */
+    private List<String> findStepsWithoutActors(Step rootStep, List<String> warnings) {
+        List<String> unassignedSteps = new ArrayList<>();
+        // TODO: Implement recursive search
+        // Hint: Pass the unassignedSteps list down the recursion tree.
+        // If step.getActor() == null (and it isn't the root step), add its orderNumber to the list.
+        return null;
+    }
+
+    /**
+     * Reconstructs the scenario as a list of strings, restricted to a certain depth.
+     * If maxDepth is 0, it means "no limit".
+     */
+    private List<String> generateTextualScenario(Step rootStep, int maxDepth, List<String> warnings) {
+        List<String> scenarioText = new ArrayList<>();
+        // TODO: Implement recursive text generator
+        // Hint: Pass currentDepth integer down the tree.
+        // If maxDepth > 0 && currentDepth > maxDepth, stop recursing down that branch.
+        // Format: "1.2. IF: Librarian adds book"
+        return null;
     }
 }

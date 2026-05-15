@@ -11,23 +11,28 @@ import pl.put.poznan.sqc.model.ScenarioWrapper;
 @RequestMapping("/api/analyze")
 public class SQCController {
 
-    private final SQC sqc = new SQC();
+    private final SQC sqc;
+
+    public SQCController(SQC sqc) {
+        this.sqc = sqc;
+    }
 
     @PostMapping
     public ResponseEntity<AnalysisResponse> analyze(
             @RequestBody ScenarioWrapper scenarioWrapper
     ) {
-        if (scenarioWrapper == null || scenarioWrapper.scenario() == null) {
-            AnalysisResponse errorResponse = new AnalysisResponse(
-                    ResponseStatus.ERROR,
-                    "No scenario provided in the request body.",
-                    null, null, null, null, null, null
+        if (scenarioWrapper == null || scenarioWrapper.scenario() == null || scenarioWrapper.scenario().rootStep() == null) {
+            return ResponseEntity.badRequest().body(
+                    AnalysisResponse.builder().status(ResponseStatus.INPUT_ERROR).message("No scenario provided in the request body or no rootStep").build()
             );
-            return ResponseEntity.badRequest().body(errorResponse);
         }
 
         AnalysisResponse result = sqc.analyze(scenarioWrapper);
-        return ResponseEntity.ok(result);
+        return switch(result.getStatus()) {
+            case SUCCESS -> ResponseEntity.ok(result);
+            case INPUT_ERROR -> ResponseEntity.badRequest().body(result);
+            case SERVER_ERROR -> ResponseEntity.internalServerError().body(result);
+        };
     }
 }
 

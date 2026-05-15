@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum ResponseStatus {
     SUCCESS("success"),
-    ERROR("error");
+    INPUT_ERROR("input_error"),
+    SERVER_ERROR("server_error");
 
     private final String value;
 
@@ -12,7 +13,7 @@ public enum ResponseStatus {
         this.value = value;
     }
 
-    // Jackson will call this method to figure out what string to put in the JSON
+    // string to put in the JSON
     @JsonValue
     public String getValue() {
         return value;
