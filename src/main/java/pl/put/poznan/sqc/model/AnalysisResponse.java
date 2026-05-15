@@ -14,6 +14,7 @@ public class AnalysisResponse {
     private final Integer keywordStepCount;
     private final List<String> stepsWithoutActors;
     private final List<String> textualScenario;
+    private final Scenario limitedScenario;
     private final List<String> otherMistakes;
 
     public AnalysisResponse() {
@@ -28,6 +29,7 @@ public class AnalysisResponse {
         this.keywordStepCount = builder.keywordStepCount;
         this.stepsWithoutActors = builder.stepsWithoutActors;
         this.textualScenario = builder.textualScenario;
+        this.limitedScenario = builder.limitedScenario;
         this.otherMistakes = builder.otherMistakes;
     }
 
@@ -38,6 +40,7 @@ public class AnalysisResponse {
     public Integer getKeywordStepCount() { return keywordStepCount; }
     public List<String> getStepsWithoutActors() { return stepsWithoutActors; }
     public List<String> getTextualScenario() { return textualScenario; }
+    public Scenario getLimitedScenario() { return limitedScenario; }
     public List<String> getOtherMistakes() { return otherMistakes; }
 
     public static Builder builder() {
@@ -52,6 +55,7 @@ public class AnalysisResponse {
         private Integer keywordStepCount;
         private List<String> stepsWithoutActors;
         private List<String> textualScenario;
+        private Scenario limitedScenario;
         private List<String> otherMistakes;
 
         private Builder() {}
@@ -88,6 +92,11 @@ public class AnalysisResponse {
 
         public Builder textualScenario(List<String> textualScenario) {
             this.textualScenario = textualScenario;
+            return this;
+        }
+
+        public Builder limitedScenario(Scenario limitedScenario) {
+            this.limitedScenario = limitedScenario;
             return this;
         }
 

@@ -49,6 +49,11 @@ public class SQC {
             responseBuilder.textualScenario(textualScenario);
         }
 
+        if (options.includeLimitedScenario()) {
+            Scenario limitedScenario = generateLimitedScenario(scenario, options.maxDepth(), warnings);
+            responseBuilder.limitedScenario(limitedScenario);
+        }
+
         // 4. Build and return the final immutable object!
         return responseBuilder.warnings(warnings).build();
     }
@@ -211,5 +216,43 @@ public class SQC {
         // If maxDepth > 0 && currentDepth > maxDepth, stop recursing down that branch.
         // Format: "1.2. IF: Librarian adds book"
         return null;
+    }
+
+    /**
+     * Returns a copy of the scenario containing only steps up to maxDepth.
+     * The invisible root step is depth 0, so maxDepth 1 means top-level steps only.
+     * If maxDepth is 0, no limit is applied.
+     */
+    private Scenario generateLimitedScenario(Scenario scenario, int maxDepth, List<String> warnings) {
+        if (maxDepth < 0) {
+            warnings.add("maxDepth cannot be negative. Full scenario was returned.");
+            maxDepth = 0;
+        }
+
+        return new Scenario(
+                scenario.title(),
+                scenario.externalActors(),
+                scenario.systemActors(),
+                copyStepToDepth(scenario.rootStep(), 0, maxDepth)
+        );
+    }
+
+    private Step copyStepToDepth(Step sourceStep, int currentDepth, int maxDepth) {
+        Step copiedStep = new Step();
+        copiedStep.setText(sourceStep.getText());
+        copiedStep.setKeyword(sourceStep.getKeyword());
+        copiedStep.setActor(sourceStep.getActor());
+        copiedStep.setCleanText(sourceStep.getCleanText());
+        copiedStep.setOrderNumber(sourceStep.getOrderNumber());
+
+        if (maxDepth == 0 || currentDepth < maxDepth) {
+            List<Step> copiedSubSteps = new ArrayList<>();
+            for (Step subStep : sourceStep.getSubSteps()) {
+                copiedSubSteps.add(copyStepToDepth(subStep, currentDepth + 1, maxDepth));
+            }
+            copiedStep.setSubSteps(copiedSubSteps);
+        }
+
+        return copiedStep;
     }
 }
