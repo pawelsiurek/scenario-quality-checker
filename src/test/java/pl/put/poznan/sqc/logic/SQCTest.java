@@ -47,7 +47,7 @@ class SQCTest {
     }
 
     private ScenarioOptions limitedScenarioOptions(int maxDepth) {
-        return new ScenarioOptions(false, false, false, false, true, maxDepth);
+        return new ScenarioOptions(false, false, false, false, true, false, maxDepth);
     }
 
     private Scenario sampleScenario() {
