@@ -226,9 +226,20 @@ public class SQC {
      * Counts only steps that begin with a specific keyword (IF, ELSE, FOR EACH).
      */
     private Integer countKeywordSteps(Step rootStep, List<String> warnings) {
-        // TODO: Implement recursive keyword counter
-        // Hint: Check if step.getKeyword() != null
-        return null;
+        if (rootStep == null || rootStep.getSubSteps() == null || rootStep.getSubSteps().isEmpty()) {
+            return 0; // Empty scenario -> 0 steps
+        }
+        Queue<Step> queue = new LinkedList<>();
+        queue.addAll(rootStep.getSubSteps());
+        int count = 0;
+        while(!queue.isEmpty()) {
+            Step current = queue.poll();
+            if(current.getKeyword()!=null) count++;
+            if (current.getSubSteps() != null) {
+                queue.addAll(current.getSubSteps());
+            }
+        }
+        return count;
     }
 
     /**
