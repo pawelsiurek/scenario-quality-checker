@@ -8,7 +8,7 @@ public record ScenarioWrapper (
         // scenario demanded to be non null
         // if options are null, result to defaults
         if (options == null) {
-            options = new ScenarioOptions(null, null, null, null, null, null);
+            options = new ScenarioOptions(null, null, null, null, null, null, null);
         }
     }
 }

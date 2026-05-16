@@ -7,6 +7,7 @@ public record ScenarioOptions (
         Boolean includeStepsWithoutActors,
         Boolean includeNumberedScenario,
         Boolean includeLimitedScenario,
+        Boolean includeInvalidSteps,
         Integer maxDepth
 ) {
     public ScenarioOptions {
@@ -15,6 +16,7 @@ public record ScenarioOptions (
         if(includeStepsWithoutActors == null) includeStepsWithoutActors = true;
         if(includeNumberedScenario == null) includeNumberedScenario = true;
         if(includeLimitedScenario == null) includeLimitedScenario = true;
+        if(includeInvalidSteps == null) includeInvalidSteps = true;
         if(maxDepth == null) maxDepth = 0;
     }
 }

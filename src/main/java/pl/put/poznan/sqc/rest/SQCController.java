@@ -1,4 +1,6 @@
 package pl.put.poznan.sqc.rest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.put.poznan.sqc.logic.SQC;
@@ -33,6 +35,25 @@ public class SQCController {
             case INPUT_ERROR -> ResponseEntity.badRequest().body(result);
             case SERVER_ERROR -> ResponseEntity.internalServerError().body(result);
         };
+    }
+
+    @PostMapping("/text")
+    public ResponseEntity<String> analyzeText(
+            @RequestBody ScenarioWrapper scenarioWrapper
+    ) {
+        if (scenarioWrapper == null || scenarioWrapper.scenario() == null || scenarioWrapper.scenario().rootStep() == null) {
+            return ResponseEntity.badRequest().body("No scenario provided in the request body or no rootStep");
+        }
+
+        String textScenario = sqc.analyzeToText(scenarioWrapper);
+        if (textScenario == null || textScenario.isEmpty()) {
+            return ResponseEntity.badRequest().body("Failed to generate text scenario");
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"scenario.txt\"")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(textScenario);
     }
 }
 

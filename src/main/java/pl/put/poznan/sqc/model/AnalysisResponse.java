@@ -13,6 +13,7 @@ public class AnalysisResponse {
     private final Integer totalStepCount;
     private final Integer keywordStepCount;
     private final List<String> stepsWithoutActors;
+    private final List<String> invalidSteps;
     private final List<String> textualScenario;
     private final Scenario limitedScenario;
     private final List<String> otherMistakes;
@@ -28,6 +29,7 @@ public class AnalysisResponse {
         this.totalStepCount = builder.totalStepCount;
         this.keywordStepCount = builder.keywordStepCount;
         this.stepsWithoutActors = builder.stepsWithoutActors;
+        this.invalidSteps = builder.invalidSteps;
         this.textualScenario = builder.textualScenario;
         this.limitedScenario = builder.limitedScenario;
         this.otherMistakes = builder.otherMistakes;
@@ -39,6 +41,7 @@ public class AnalysisResponse {
     public Integer getTotalStepCount() { return totalStepCount; }
     public Integer getKeywordStepCount() { return keywordStepCount; }
     public List<String> getStepsWithoutActors() { return stepsWithoutActors; }
+    public List<String> getInvalidSteps() { return invalidSteps; }
     public List<String> getTextualScenario() { return textualScenario; }
     public Scenario getLimitedScenario() { return limitedScenario; }
     public List<String> getOtherMistakes() { return otherMistakes; }
@@ -54,6 +57,7 @@ public class AnalysisResponse {
         private Integer totalStepCount;
         private Integer keywordStepCount;
         private List<String> stepsWithoutActors;
+        private List<String> invalidSteps;
         private List<String> textualScenario;
         private Scenario limitedScenario;
         private List<String> otherMistakes;
@@ -87,6 +91,11 @@ public class AnalysisResponse {
 
         public Builder stepsWithoutActors(List<String> stepsWithoutActors) {
             this.stepsWithoutActors = stepsWithoutActors;
+            return this;
+        }
+
+        public Builder invalidSteps(List<String> invalidSteps) {
+            this.invalidSteps = invalidSteps;
             return this;
         }
 

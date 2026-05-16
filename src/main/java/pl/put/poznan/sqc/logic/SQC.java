@@ -9,6 +9,27 @@ import java.util.*;
 public class SQC {
     private static final Set<String> keywords = new HashSet<>(Arrays.asList("IF", "ELSE", "FOR EACH"));
 
+    public String analyzeToText(ScenarioWrapper scenarioWrapper) {
+        List<String> warnings = new ArrayList<>();
+
+        // 1. Normalization & Validation Phase
+        AnalysisResponse normalizationResponse = normalize(scenarioWrapper, warnings);
+        if (normalizationResponse.getStatus() != ResponseStatus.SUCCESS) {
+            return null;
+        }
+
+        Scenario scenario = scenarioWrapper.scenario();
+        Step rootStep = scenario.rootStep();
+        int maxDepth = scenarioWrapper.options().maxDepth();
+
+        List<String> textLines = generateTextualScenario(rootStep, maxDepth, warnings);
+        if (textLines == null || textLines.isEmpty()) {
+            return null;
+        }
+
+        return String.join("\n", textLines);
+    }
+
     public AnalysisResponse analyze(ScenarioWrapper scenarioWrapper) {
         List<String> warnings = new ArrayList<>();
 
@@ -42,6 +63,11 @@ public class SQC {
         if (options.includeStepsWithoutActors()) {
             List<String> stepsWithoutActors = findStepsWithoutActors(rootStep, warnings);
             responseBuilder.stepsWithoutActors(stepsWithoutActors);
+        }
+
+        if (options.includeInvalidSteps()) {
+            List<String> invalidSteps = findInvalidSteps(rootStep, warnings);
+            responseBuilder.invalidSteps(invalidSteps);
         }
 
         if (options.includeNumberedScenario()) {
@@ -206,16 +232,71 @@ public class SQC {
     }
 
     /**
+     * Validation rule: A step is invalid if it has TEXT and has NO ACTOR and has NO KEYWORD.
+     * Returns a list of order numbers (e.g., ["1.2.", "2."]) for invalid steps.
+     */
+    private List<String> findInvalidSteps(Step rootStep, List<String> warnings) {
+        List<String> invalidSteps = new ArrayList<>();
+        findInvalidStepsRecursive(rootStep, invalidSteps, warnings);
+        return invalidSteps.isEmpty() ? null : invalidSteps;
+    }
+
+    private void findInvalidStepsRecursive(Step step, List<String> invalidSteps, List<String> warnings) {
+        for (Step subStep : step.getSubSteps()) {
+            // Check if step has text but lacks both actor and keyword
+            if (subStep.getText() != null && subStep.getActor() == null && subStep.getKeyword() == null) {
+                invalidSteps.add(subStep.getOrderNumber());
+                warnings.add("Step " + subStep.getOrderNumber() + " has no actor and no keyword");
+            }
+            // Recurse into children
+            findInvalidStepsRecursive(subStep, invalidSteps, warnings);
+        }
+    }
+
+    /**
      * Reconstructs the scenario as a list of strings, restricted to a certain depth.
      * If maxDepth is 0, it means "no limit".
+     * Format: "1.2. IF: Librarian adds book" with indentation for nesting.
      */
     private List<String> generateTextualScenario(Step rootStep, int maxDepth, List<String> warnings) {
         List<String> scenarioText = new ArrayList<>();
-        // TODO: Implement recursive text generator
-        // Hint: Pass currentDepth integer down the tree.
-        // If maxDepth > 0 && currentDepth > maxDepth, stop recursing down that branch.
-        // Format: "1.2. IF: Librarian adds book"
-        return null;
+        generateTextualScenarioRecursive(rootStep, scenarioText, 0, maxDepth);
+        return scenarioText.isEmpty() ? null : scenarioText;
+    }
+
+    private void generateTextualScenarioRecursive(Step step, List<String> scenarioText, int currentDepth, int maxDepth) {
+        for (Step subStep : step.getSubSteps()) {
+            // Check depth limit
+            if (maxDepth > 0 && currentDepth >= maxDepth) {
+                break;
+            }
+
+            String orderNum = subStep.getOrderNumber();
+            String text = buildStepText(subStep);
+            String indentation = "  ".repeat(currentDepth);
+            scenarioText.add(indentation + orderNum + " " + text);
+
+            // Recurse into children
+            generateTextualScenarioRecursive(subStep, scenarioText, currentDepth + 1, maxDepth);
+        }
+    }
+
+    private String buildStepText(Step step) {
+        StringBuilder sb = new StringBuilder();
+        
+        if (step.getKeyword() != null) {
+            sb.append(step.getKeyword()).append(": ");
+        }
+        
+        if (step.getActor() != null) {
+            sb.append(step.getActor()).append(" ");
+        }
+        
+        if (step.getCleanText() != null) {
+            sb.append(step.getCleanText());
+        }
+        
+        return sb.toString().trim();
     }
 
     /**
