@@ -206,9 +206,20 @@ public class SQC {
      * Counts all steps in the scenario tree (excluding the invisible root step).
      */
     private Integer countTotalSteps(Step rootStep, List<String> warnings) {
-        // TODO: Implement recursive counter
-        // Hint: Start at 0, iterate through children, add 1 for each child + child's subSteps
-        return null;
+        if (rootStep == null || rootStep.getSubSteps() == null || rootStep.getSubSteps().isEmpty()) {
+            return 0; // Empty scenario -> 0 steps
+        }
+        Queue<Step> queue = new LinkedList<>();
+        queue.addAll(rootStep.getSubSteps());
+        int count = 0;
+        while(!queue.isEmpty()) {
+            Step current = queue.poll();
+            count++;
+            if (current.getSubSteps() != null) {
+                queue.addAll(current.getSubSteps());
+            }
+        }
+        return count;
     }
 
     /**
