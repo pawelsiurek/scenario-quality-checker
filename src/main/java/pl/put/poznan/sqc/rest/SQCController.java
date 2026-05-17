@@ -7,6 +7,11 @@ import pl.put.poznan.sqc.logic.SQC;
 import pl.put.poznan.sqc.model.AnalysisResponse;
 import pl.put.poznan.sqc.model.ResponseStatus;
 import pl.put.poznan.sqc.model.ScenarioWrapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 /**
  * REST API Controller for Scenario Quality Checker analysis endpoints.
@@ -53,6 +58,97 @@ public class SQCController {
      * @param scenarioWrapper the scenario and analysis options to process
      * @return ResponseEntity containing AnalysisResponse with status, metrics, and warnings
      */
+    @Operation(
+            summary = "Analyze a scenario",
+            description = "Validates the scenario tree, identifies missing actors, calculates step metrics, and generates a formatted text output."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "The scenario wrapper containing the tree and configuration options.",
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            name = "Comprehensive Example",
+                            summary = "A standard scenario with nested IF statements",
+                            value = """
+                            {
+                              "scenario": {
+                                "title": "Adding a new book to the catalog",
+                                "externalActors": ["Librarian"],
+                                "systemActors": ["System", "Database"],
+                                "rootStep": {
+                                  "subSteps": [
+                                    { "text": "Librarian enters book details" },
+                                    {
+                                      "text": "IF: System validates the ISBN",
+                                      "subSteps": [
+                                        { "text": "Database saves the record" },
+                                        {
+                                          "text": "System displays success message",
+                                          "subSteps": [
+                                            { "text": "This step is too deep and will be ignored by maxDepth!" }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    { "text": "Generates an error because there is no actor here" }
+                                  ]
+                                }
+                              }
+                            }
+                            """
+                    )
+            )
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Analysis completed successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "Success Response",
+                                    value = """
+                                    {
+                                         "status": "success",
+                                         "message": "Analysis successfully completed",
+                                         "warnings": [
+                                           "Step 2.2. has no keyword, but has children"
+                                         ],
+                                         "totalStepCount": 6,
+                                         "keywordStepCount": 1,
+                                         "stepsWithoutActors": [
+                                           "2.2.1.",
+                                           "3."
+                                         ],
+                                         "textualScenario": [
+                                           "1. Librarian enters book details",
+                                           "2. IF: System validates the ISBN",
+                                           "  2.1. Database saves the record",
+                                           "  2.2. System displays success message",
+                                           "    2.2.1. This step is too deep and will be ignored by maxDepth!",
+                                           "3. Generates an error because there is no actor here"
+                                         ]
+                                    }
+                                    """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid input (e.g., missing root step or actors)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                    {
+                                      "status": "input_error",
+                                      "message": "No scenario provided in the request body or no rootStep"
+                                    }
+                                    """
+                            )
+                    )
+            )
+    })
     @PostMapping
     public ResponseEntity<AnalysisResponse> analyze(
             @RequestBody ScenarioWrapper scenarioWrapper
