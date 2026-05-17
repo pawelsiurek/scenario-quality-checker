@@ -5,10 +5,40 @@ import pl.put.poznan.sqc.model.*;
 
 import java.util.*;
 
+/**
+ * SQC (Scenario Quality Checker) Service.
+ * 
+ * Core business logic for analyzing and validating functional requirements written in scenario format.
+ * Provides automated feedback on scenarios including metrics, error detection, and scenario transformation.
+ * 
+ * <p>Key responsibilities:
+ * <ul>
+ *   <li>Normalize and validate scenario structure and content</li>
+ *   <li>Extract and analyze scenario components (keywords, actors, steps)</li>
+ *   <li>Generate quantitative metrics (step counts, keyword analysis)</li>
+ *   <li>Identify quality issues (missing actors, invalid steps)</li>
+ *   <li>Transform scenarios (depth limiting, textual representation)</li>
+ * </ul>
+ * 
+ * <p>Recognized flow control keywords: IF, ELSE, FOR EACH
+ * 
+ * @author Scenario Quality Checker Team
+ * @version 1.0
+ */
 @Service
 public class SQC {
     private static final Set<String> keywords = new HashSet<>(Arrays.asList("IF", "ELSE", "FOR EACH"));
 
+    /**
+     * Analyzes a scenario and returns results as a textual scenario representation.
+     * 
+     * <p>This method performs normalization, validation, and generates a formatted text representation
+     * of the scenario respecting the configured depth limit.
+     * 
+     * @param scenarioWrapper the scenario wrapper containing the scenario and analysis options
+     * @return a string representation of the scenario (formatted with numbering and indentation),
+     *         or null if the scenario is invalid or analysis fails
+     */
     public String analyzeToText(ScenarioWrapper scenarioWrapper) {
         List<String> warnings = new ArrayList<>();
 
@@ -30,6 +60,28 @@ public class SQC {
         return String.join("\n", textLines);
     }
 
+    /**
+     * Analyzes a scenario and returns comprehensive analysis results.
+     * 
+     * <p>This method performs a complete analysis of the scenario including normalization, validation,
+     * and computation of metrics/analysis based on the provided options. Results are returned in a
+     * structured {@link AnalysisResponse} object.
+     * 
+     * <p>Analysis options control which computations are performed:
+     * <ul>
+     *   <li>{@code includeTotalStepCount} - Count all steps in the scenario</li>
+     *   <li>{@code includeKeywordStepCount} - Count steps with flow control keywords</li>
+     *   <li>{@code includeStepsWithoutActors} - Identify steps lacking an assigned actor</li>
+     *   <li>{@code includeNumberedScenario} - Generate textual numbered representation</li>
+     *   <li>{@code includeLimitedScenario} - Create scenario restricted to specified depth</li>
+     *   <li>{@code maxDepth} - Maximum nesting depth (0 = unlimited)</li>
+     * </ul>
+     * 
+     * @param scenarioWrapper the scenario wrapper containing the scenario and analysis options
+     * @return an {@link AnalysisResponse} with status, metrics, and analysis results.
+     *         Returns error status if the scenario is invalid or required actors are missing.
+     *         Includes warnings for detected issues during normalization.
+     */
     public AnalysisResponse analyze(ScenarioWrapper scenarioWrapper) {
         List<String> warnings = new ArrayList<>();
 
