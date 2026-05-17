@@ -3,7 +3,7 @@ name: CI Build and Notify
 # Triggers the workflow on any push or pull request to the main branch
 on:
   push:
-    branches: [ "main", "master" ]
+  pull_request:
 jobs:
   build:
     name: Build Software
@@ -37,7 +37,7 @@ jobs:
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
           subject: "GitHub Actions: Build Failed for ${{ github.repository }}"
-          to: ${{ github.event.pusher.email }}
+          to: ${{ github.event.pusher.email || secrets.notify_email }}
           from: GitHub Actions <${{ secrets.MAIL_USERNAME }}>
           body: |
             Hi ${{ github.actor }},
