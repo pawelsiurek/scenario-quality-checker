@@ -65,11 +65,6 @@ public class SQC {
             responseBuilder.stepsWithoutActors(stepsWithoutActors);
         }
 
-        if (options.includeInvalidSteps()) {
-            List<String> invalidSteps = findInvalidSteps(rootStep, warnings);
-            responseBuilder.invalidSteps(invalidSteps);
-        }
-
         if (options.includeNumberedScenario()) {
             List<String> textualScenario = generateTextualScenario(rootStep, options.maxDepth(), warnings);
             responseBuilder.textualScenario(textualScenario);
@@ -247,31 +242,16 @@ public class SQC {
      */
     private List<String> findStepsWithoutActors(Step rootStep, List<String> warnings) {
         List<String> unassignedSteps = new ArrayList<>();
-        // TODO: Implement recursive search
-        // Hint: Pass the unassignedSteps list down the recursion tree.
-        // If step.getActor() == null (and it isn't the root step), add its orderNumber to the list.
-        return null;
+        findStepsWithoutActorsRecursive(rootStep, unassignedSteps);
+        return unassignedSteps.isEmpty() ? null : unassignedSteps;
     }
 
-    /**
-     * Validation rule: A step is invalid if it has TEXT and has NO ACTOR and has NO KEYWORD.
-     * Returns a list of order numbers (e.g., ["1.2.", "2."]) for invalid steps.
-     */
-    private List<String> findInvalidSteps(Step rootStep, List<String> warnings) {
-        List<String> invalidSteps = new ArrayList<>();
-        findInvalidStepsRecursive(rootStep, invalidSteps, warnings);
-        return invalidSteps.isEmpty() ? null : invalidSteps;
-    }
-
-    private void findInvalidStepsRecursive(Step step, List<String> invalidSteps, List<String> warnings) {
+    private void findStepsWithoutActorsRecursive(Step step, List<String> unassignedSteps) {
         for (Step subStep : step.getSubSteps()) {
-            // Check if step has text but lacks both actor and keyword
-            if (subStep.getText() != null && subStep.getActor() == null && subStep.getKeyword() == null) {
-                invalidSteps.add(subStep.getOrderNumber());
-                warnings.add("Step " + subStep.getOrderNumber() + " has no actor and no keyword");
+            if (subStep.getActor() == null) {
+                unassignedSteps.add(subStep.getOrderNumber());
             }
-            // Recurse into children
-            findInvalidStepsRecursive(subStep, invalidSteps, warnings);
+            findStepsWithoutActorsRecursive(subStep, unassignedSteps);
         }
     }
 
