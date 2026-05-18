@@ -1,0 +1,69 @@
+@startuml
+title Scenario Quality Checker - Analyze Request Sequence
+
+actor "API Client" as Client
+participant "SQCController\n@RestController" as Controller
+participant "SQC\n@Service" as Service
+participant "ScenarioWrapper" as Wrapper
+participant "Scenario / Step tree" as Scenario
+participant "AnalysisResponse.Builder" as Builder
+
+Client -> Controller : POST /api/analyze\nScenarioWrapper JSON
+activate Controller
+
+Controller -> Controller : validate request body\nscenario and rootStep present
+
+alt invalid request
+  Controller --> Client : 400 Bad Request\nAnalysisResponse(INPUT_ERROR)
+else valid request
+  Controller -> Service : analyze(wrapper)
+  activate Service
+
+  Service -> Wrapper : scenario(), options()
+  Wrapper --> Service : Scenario, ScenarioOptions
+  Service -> Scenario : normalize actors and steps\nassign order numbers\nextract keyword, actor, cleanText
+
+  Service -> Builder : status(SUCCESS)\nmessage("Analysis successfully completed")
+
+  opt includeTotalStepCount
+    Service -> Scenario : count all steps recursively
+    Service -> Builder : totalStepCount(count)
+  end
+
+  opt includeKeywordStepCount
+    Service -> Scenario : count steps with IF, ELSE, FOR EACH
+    Service -> Builder : keywordStepCount(count)
+  end
+
+  opt includeStepsWithoutActors
+    Service -> Scenario : collect step order numbers\nwhere actor is missing
+    Service -> Builder : stepsWithoutActors(list)
+  end
+
+  opt includeNumberedScenario
+    Service -> Scenario : create numbered text lines\nrespecting maxDepth
+    Service -> Builder : textualScenario(lines)
+  end
+
+  opt includeLimitedScenario
+    Service -> Scenario : copy scenario tree\nup to maxDepth
+    Service -> Builder : limitedScenario(scenario)
+  end
+
+  Service -> Builder : warnings(warnings)\nbuild()
+  Builder --> Service : AnalysisResponse
+  Service --> Controller : AnalysisResponse
+  deactivate Service
+
+  alt SUCCESS
+    Controller --> Client : 200 OK\nAnalysisResponse JSON
+  else INPUT_ERROR
+    Controller --> Client : 400 Bad Request\nAnalysisResponse JSON
+  else SERVER_ERROR
+    Controller --> Client : 500 Internal Server Error\nAnalysisResponse JSON
+  end
+end
+
+deactivate Controller
+
+@enduml
