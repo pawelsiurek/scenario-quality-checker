@@ -1,5 +1,6 @@
 package pl.put.poznan.sqc.logic;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import pl.put.poznan.sqc.model.AnalysisResponse;
 import pl.put.poznan.sqc.model.Scenario;
@@ -14,6 +15,58 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SQCTest {
 
     private final SQC sqc = new SQC();
+
+    @Test
+    void deserializesScenarioOptionsFromJsonRequest() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        ScenarioWrapper wrapper = objectMapper.readValue("""
+                {
+                  "scenario": {
+                    "title": "Book addition",
+                    "externalActors": ["Librarian"],
+                    "systemActors": ["System"],
+                    "rootStep": { "subSteps": [] }
+                  },
+                  "options": {
+                    "includeTotalStepCount": false,
+                    "includeKeywordStepCount": false,
+                    "includeStepsWithoutActors": false,
+                    "includeNumberedScenario": false,
+                    "includeLimitedScenario": true,
+                    "includeInvalidSteps": false,
+                    "maxDepth": 2
+                  }
+                }
+                """, ScenarioWrapper.class);
+
+        assertThat(wrapper.options().includeTotalStepCount()).isFalse();
+        assertThat(wrapper.options().includeKeywordStepCount()).isFalse();
+        assertThat(wrapper.options().includeStepsWithoutActors()).isFalse();
+        assertThat(wrapper.options().includeNumberedScenario()).isFalse();
+        assertThat(wrapper.options().includeLimitedScenario()).isTrue();
+        assertThat(wrapper.options().includeInvalidSteps()).isFalse();
+        assertThat(wrapper.options().maxDepth()).isEqualTo(2);
+    }
+
+    @Test
+    void returnsVisitorBasedAnalysisResults() {
+        ScenarioWrapper wrapper = new ScenarioWrapper(
+                sampleScenario(),
+                new ScenarioOptions(true, true, true, true, false, false, 0)
+        );
+
+        AnalysisResponse response = sqc.analyze(wrapper);
+
+        assertThat(response.getTotalStepCount()).isEqualTo(3);
+        assertThat(response.getKeywordStepCount()).isEqualTo(1);
+        assertThat(response.getStepsWithoutActors()).isNull();
+        assertThat(response.getTextualScenario()).containsExactly(
+                "1. Librarian starts scenario",
+                "  1.1. IF: Librarian chooses copies",
+                "    1.1.1. System confirms copy"
+        );
+    }
 
     @Test
     void returnsOnlyTopLevelStepsForDepthOne() {

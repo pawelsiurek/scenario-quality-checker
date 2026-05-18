@@ -169,4 +169,20 @@ public class Step {
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber == null || orderNumber.isBlank() ? "" : orderNumber.trim();
     }
+
+    /**
+     * Accepts a visitor and traverses this step with all nested sub-steps.
+     *
+     * @param visitor visitor to execute for each step
+     */
+    public void accept(StepVisitor visitor) {
+        accept(visitor, null, 0);
+    }
+
+    private void accept(StepVisitor visitor, Step parentStep, int depth) {
+        visitor.visit(this, parentStep, depth);
+        for (Step subStep : subSteps) {
+            subStep.accept(visitor, this, depth + 1);
+        }
+    }
 }

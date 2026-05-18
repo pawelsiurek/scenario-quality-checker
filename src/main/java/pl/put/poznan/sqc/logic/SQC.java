@@ -3,6 +3,11 @@ package pl.put.poznan.sqc.logic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import pl.put.poznan.sqc.logic.visitor.KeywordStepCountVisitor;
+import pl.put.poznan.sqc.logic.visitor.LimitedScenarioVisitor;
+import pl.put.poznan.sqc.logic.visitor.StepsWithoutActorsVisitor;
+import pl.put.poznan.sqc.logic.visitor.TextualScenarioVisitor;
+import pl.put.poznan.sqc.logic.visitor.TotalStepCountVisitor;
 import pl.put.poznan.sqc.model.*;
 
 import java.util.*;
@@ -60,7 +65,7 @@ public class SQC {
         int maxDepth = scenarioWrapper.options().maxDepth();
         logger.debug("Generating text scenario with maxDepth {}", maxDepth);
 
-        List<String> textLines = generateTextualScenario(rootStep, maxDepth, warnings);
+        List<String> textLines = generateTextualScenario(rootStep, maxDepth);
         if (textLines == null || textLines.isEmpty()) {
             logger.info("Text scenario analysis produced no text lines");
             return null;
@@ -122,20 +127,20 @@ public class SQC {
         // Check for errors like ELSE without IF or nested block without keyword
         // I think that it should be allowed for a step with keyword to have no children
         if (options.includeTotalStepCount()) {
-            responseBuilder.totalStepCount(countTotalSteps(rootStep, warnings));
+            responseBuilder.totalStepCount(countTotalSteps(rootStep));
         }
 
         if (options.includeKeywordStepCount()) {
-            responseBuilder.keywordStepCount(countKeywordSteps(rootStep, warnings));
+            responseBuilder.keywordStepCount(countKeywordSteps(rootStep));
         }
 
         if (options.includeStepsWithoutActors()) {
-            List<String> stepsWithoutActors = findStepsWithoutActors(rootStep, warnings);
+            List<String> stepsWithoutActors = findStepsWithoutActors(rootStep);
             responseBuilder.stepsWithoutActors(stepsWithoutActors);
         }
 
         if (options.includeNumberedScenario()) {
-            List<String> textualScenario = generateTextualScenario(rootStep, options.maxDepth(), warnings);
+            List<String> textualScenario = generateTextualScenario(rootStep, options.maxDepth());
             responseBuilder.textualScenario(textualScenario);
         }
 
@@ -276,59 +281,28 @@ public class SQC {
     /**
      * Counts all steps in the scenario tree (excluding the invisible root step).
      */
-    private Integer countTotalSteps(Step rootStep, List<String> warnings) {
-        if (rootStep == null || rootStep.getSubSteps() == null || rootStep.getSubSteps().isEmpty()) {
-            return 0; // Empty scenario -> 0 steps
-        }
-        Queue<Step> queue = new LinkedList<>();
-        queue.addAll(rootStep.getSubSteps());
-        int count = 0;
-        while(!queue.isEmpty()) {
-            Step current = queue.poll();
-            count++;
-            if (current.getSubSteps() != null) {
-                queue.addAll(current.getSubSteps());
-            }
-        }
-        return count;
+    private Integer countTotalSteps(Step rootStep) {
+        TotalStepCountVisitor visitor = new TotalStepCountVisitor();
+        rootStep.accept(visitor);
+        return visitor.getCount();
     }
 
     /**
      * Counts only steps that begin with a specific keyword (IF, ELSE, FOR EACH).
      */
-    private Integer countKeywordSteps(Step rootStep, List<String> warnings) {
-        if (rootStep == null || rootStep.getSubSteps() == null || rootStep.getSubSteps().isEmpty()) {
-            return 0; // Empty scenario -> 0 steps
-        }
-        Queue<Step> queue = new LinkedList<>();
-        queue.addAll(rootStep.getSubSteps());
-        int count = 0;
-        while(!queue.isEmpty()) {
-            Step current = queue.poll();
-            if(current.getKeyword()!=null) count++;
-            if (current.getSubSteps() != null) {
-                queue.addAll(current.getSubSteps());
-            }
-        }
-        return count;
+    private Integer countKeywordSteps(Step rootStep) {
+        KeywordStepCountVisitor visitor = new KeywordStepCountVisitor();
+        rootStep.accept(visitor);
+        return visitor.getCount();
     }
 
     /**
      * Returns a list of order numbers (e.g., ["1.2.", "2."]) for steps that lack an actor.
      */
-    private List<String> findStepsWithoutActors(Step rootStep, List<String> warnings) {
-        List<String> unassignedSteps = new ArrayList<>();
-        findStepsWithoutActorsRecursive(rootStep, unassignedSteps);
-        return unassignedSteps.isEmpty() ? null : unassignedSteps;
-    }
-
-    private void findStepsWithoutActorsRecursive(Step step, List<String> unassignedSteps) {
-        for (Step subStep : step.getSubSteps()) {
-            if (subStep.getActor() == null) {
-                unassignedSteps.add(subStep.getOrderNumber());
-            }
-            findStepsWithoutActorsRecursive(subStep, unassignedSteps);
-        }
+    private List<String> findStepsWithoutActors(Step rootStep) {
+        StepsWithoutActorsVisitor visitor = new StepsWithoutActorsVisitor();
+        rootStep.accept(visitor);
+        return visitor.getStepsWithoutActors();
     }
 
     /**
@@ -336,45 +310,10 @@ public class SQC {
      * If maxDepth is 0, it means "no limit".
      * Format: "1.2. IF: Librarian adds book" with indentation for nesting.
      */
-    private List<String> generateTextualScenario(Step rootStep, int maxDepth, List<String> warnings) {
-        List<String> scenarioText = new ArrayList<>();
-        generateTextualScenarioRecursive(rootStep, scenarioText, 0, maxDepth);
-        return scenarioText.isEmpty() ? null : scenarioText;
-    }
-
-    private void generateTextualScenarioRecursive(Step step, List<String> scenarioText, int currentDepth, int maxDepth) {
-        for (Step subStep : step.getSubSteps()) {
-            // Check depth limit
-            if (maxDepth > 0 && currentDepth >= maxDepth) {
-                break;
-            }
-
-            String orderNum = subStep.getOrderNumber();
-            String text = buildStepText(subStep);
-            String indentation = "  ".repeat(currentDepth);
-            scenarioText.add(indentation + orderNum + " " + text);
-
-            // Recurse into children
-            generateTextualScenarioRecursive(subStep, scenarioText, currentDepth + 1, maxDepth);
-        }
-    }
-
-    private String buildStepText(Step step) {
-        StringBuilder sb = new StringBuilder();
-        
-        if (step.getKeyword() != null) {
-            sb.append(step.getKeyword()).append(": ");
-        }
-        
-        if (step.getActor() != null) {
-            sb.append(step.getActor()).append(" ");
-        }
-        
-        if (step.getCleanText() != null) {
-            sb.append(step.getCleanText());
-        }
-        
-        return sb.toString().trim();
+    private List<String> generateTextualScenario(Step rootStep, int maxDepth) {
+        TextualScenarioVisitor visitor = new TextualScenarioVisitor(maxDepth);
+        rootStep.accept(visitor);
+        return visitor.getTextualScenario();
     }
 
     /**
@@ -388,30 +327,14 @@ public class SQC {
             maxDepth = 0;
         }
 
+        LimitedScenarioVisitor visitor = new LimitedScenarioVisitor(maxDepth);
+        scenario.rootStep().accept(visitor);
+
         return new Scenario(
                 scenario.title(),
                 scenario.externalActors(),
                 scenario.systemActors(),
-                copyStepToDepth(scenario.rootStep(), 0, maxDepth)
+                visitor.getRootStep()
         );
-    }
-
-    private Step copyStepToDepth(Step sourceStep, int currentDepth, int maxDepth) {
-        Step copiedStep = new Step();
-        copiedStep.setText(sourceStep.getText());
-        copiedStep.setKeyword(sourceStep.getKeyword());
-        copiedStep.setActor(sourceStep.getActor());
-        copiedStep.setCleanText(sourceStep.getCleanText());
-        copiedStep.setOrderNumber(sourceStep.getOrderNumber());
-
-        if (maxDepth == 0 || currentDepth < maxDepth) {
-            List<Step> copiedSubSteps = new ArrayList<>();
-            for (Step subStep : sourceStep.getSubSteps()) {
-                copiedSubSteps.add(copyStepToDepth(subStep, currentDepth + 1, maxDepth));
-            }
-            copiedStep.setSubSteps(copiedSubSteps);
-        }
-
-        return copiedStep;
     }
 }

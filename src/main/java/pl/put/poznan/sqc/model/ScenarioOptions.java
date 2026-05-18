@@ -1,13 +1,22 @@
 package pl.put.poznan.sqc.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public record ScenarioOptions (
         // All true by default
+        @JsonProperty("includeTotalStepCount")
         Boolean includeTotalStepCount,
+        @JsonProperty("includeKeywordStepCount")
         Boolean includeKeywordStepCount,
+        @JsonProperty("includeStepsWithoutActors")
         Boolean includeStepsWithoutActors,
+        @JsonProperty("includeNumberedScenario")
         Boolean includeNumberedScenario,
+        @JsonProperty("includeLimitedScenario")
         Boolean includeLimitedScenario,
+        @JsonProperty("includeInvalidSteps")
         Boolean includeInvalidSteps,
+        @JsonProperty("maxDepth")
         Integer maxDepth
 ) {
     public ScenarioOptions {
