@@ -1,4 +1,6 @@
 package pl.put.poznan.sqc.rest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +33,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 @RestController
 @RequestMapping("/api/analyze")
 public class SQCController {
+
+    private static final Logger logger = LoggerFactory.getLogger(SQCController.class);
 
     /** The SQC service instance for performing scenario analysis. */
     private final SQC sqc;
@@ -153,13 +157,19 @@ public class SQCController {
     public ResponseEntity<AnalysisResponse> analyze(
             @RequestBody ScenarioWrapper scenarioWrapper
     ) {
+        logger.info("Received scenario analysis request");
+        logger.debug("Scenario analysis request body: {}", scenarioWrapper);
+
         if (scenarioWrapper == null || scenarioWrapper.scenario() == null || scenarioWrapper.scenario().rootStep() == null) {
+            logger.info("Rejected scenario analysis request due to missing scenario or root step");
             return ResponseEntity.badRequest().body(
                     AnalysisResponse.builder().status(ResponseStatus.INPUT_ERROR).message("No scenario provided in the request body or no rootStep").build()
             );
         }
 
         AnalysisResponse result = sqc.analyze(scenarioWrapper);
+        logger.info("Scenario analysis completed with status {}", result.getStatus());
+        logger.debug("Scenario analysis response: {}", result);
         return switch(result.getStatus()) {
             case SUCCESS -> ResponseEntity.ok(result);
             case INPUT_ERROR -> ResponseEntity.badRequest().body(result);
@@ -181,15 +191,22 @@ public class SQCController {
     public ResponseEntity<String> analyzeText(
             @RequestBody ScenarioWrapper scenarioWrapper
     ) {
+        logger.info("Received text scenario analysis request");
+        logger.debug("Text scenario analysis request body: {}", scenarioWrapper);
+
         if (scenarioWrapper == null || scenarioWrapper.scenario() == null || scenarioWrapper.scenario().rootStep() == null) {
+            logger.info("Rejected text scenario analysis request due to missing scenario or root step");
             return ResponseEntity.badRequest().body("No scenario provided in the request body or no rootStep");
         }
 
         String textScenario = sqc.analyzeToText(scenarioWrapper);
         if (textScenario == null || textScenario.isEmpty()) {
+            logger.info("Text scenario generation failed");
             return ResponseEntity.badRequest().body("Failed to generate text scenario");
         }
 
+        logger.info("Text scenario generated successfully");
+        logger.debug("Generated text scenario: {}", textScenario);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"scenario.txt\"")
                 .contentType(MediaType.TEXT_PLAIN)

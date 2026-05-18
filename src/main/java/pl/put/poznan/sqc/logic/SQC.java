@@ -1,5 +1,7 @@
 package pl.put.poznan.sqc.logic;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import pl.put.poznan.sqc.model.*;
 
@@ -27,6 +29,7 @@ import java.util.*;
  */
 @Service
 public class SQC {
+    private static final Logger logger = LoggerFactory.getLogger(SQC.class);
     private static final Set<String> keywords = new HashSet<>(Arrays.asList("IF", "ELSE", "FOR EACH"));
 
     /**
@@ -40,23 +43,31 @@ public class SQC {
      *         or null if the scenario is invalid or analysis fails
      */
     public String analyzeToText(ScenarioWrapper scenarioWrapper) {
+        logger.info("Starting text scenario analysis");
+        logger.debug("Text analysis input: {}", scenarioWrapper);
+
         List<String> warnings = new ArrayList<>();
 
         // 1. Normalization & Validation Phase
         AnalysisResponse normalizationResponse = normalize(scenarioWrapper, warnings);
         if (normalizationResponse.getStatus() != ResponseStatus.SUCCESS) {
+            logger.info("Text scenario analysis failed during normalization with status {}", normalizationResponse.getStatus());
             return null;
         }
 
         Scenario scenario = scenarioWrapper.scenario();
         Step rootStep = scenario.rootStep();
         int maxDepth = scenarioWrapper.options().maxDepth();
+        logger.debug("Generating text scenario with maxDepth {}", maxDepth);
 
         List<String> textLines = generateTextualScenario(rootStep, maxDepth, warnings);
         if (textLines == null || textLines.isEmpty()) {
+            logger.info("Text scenario analysis produced no text lines");
             return null;
         }
 
+        logger.info("Text scenario analysis completed successfully");
+        logger.debug("Text scenario warnings: {}", warnings);
         return String.join("\n", textLines);
     }
 
@@ -83,17 +94,23 @@ public class SQC {
      *         Includes warnings for detected issues during normalization.
      */
     public AnalysisResponse analyze(ScenarioWrapper scenarioWrapper) {
+        logger.info("Starting scenario analysis");
+        logger.debug("Analysis input: {}", scenarioWrapper);
+
         List<String> warnings = new ArrayList<>();
 
         // 1. Normalization & Validation Phase
         AnalysisResponse normalizationResponse = normalize(scenarioWrapper, warnings);
         if (normalizationResponse.getStatus() != ResponseStatus.SUCCESS) {
+            logger.info("Scenario analysis failed during normalization with status {}", normalizationResponse.getStatus());
+            logger.debug("Scenario analysis warnings before failure: {}", warnings);
             return normalizationResponse;
         }
 
         Scenario scenario = scenarioWrapper.scenario();
         ScenarioOptions options = scenarioWrapper.options();
         Step rootStep = scenario.rootStep();
+        logger.debug("Scenario analysis options: {}", options);
 
         // 2. Initialize the Builder (Base state)
         AnalysisResponse.Builder responseBuilder = AnalysisResponse.builder()
@@ -128,10 +145,15 @@ public class SQC {
         }
 
         // 4. Build and return the final immutable object!
-        return responseBuilder.warnings(warnings).build();
+        AnalysisResponse response = responseBuilder.warnings(warnings).build();
+        logger.info("Scenario analysis completed successfully");
+        logger.debug("Scenario analysis warnings: {}", warnings);
+        logger.debug("Scenario analysis response: {}", response);
+        return response;
     }
 
     private AnalysisResponse normalize(ScenarioWrapper scenarioWrapper, List<String> warnings) {
+        logger.debug("Normalizing scenario");
         Scenario scenario = scenarioWrapper.scenario();
 
         Set<String> validActorsSet = new HashSet<>();
@@ -146,6 +168,7 @@ public class SQC {
             }
         }
         if(validActorsSet.isEmpty()) {
+            logger.info("Scenario normalization failed because no actors were provided");
             return AnalysisResponse.builder().status(ResponseStatus.INPUT_ERROR).message("No actors provided").build();
         }
         List<String> validActors = new ArrayList<>(validActorsSet);
@@ -161,6 +184,7 @@ public class SQC {
         }
 
         checkSteps(rootStep.getSubSteps(), rootStep, validActors, warnings);
+        logger.debug("Scenario normalization completed with warnings: {}", warnings);
 
         return AnalysisResponse.builder()
                 .status(ResponseStatus.SUCCESS)
