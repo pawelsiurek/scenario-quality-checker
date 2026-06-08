@@ -24,6 +24,15 @@ jobs:
       - name: Build and Test
         run: mvn -B clean verify
 
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenario-quality-checker-jar
+          path: |
+            target/*.jar
+            !target/*javadoc.jar
+            !target/original-*.jar
+
       # ---------------------------------------------------------
       # EMAIL NOTIFICATION ON FAILURE
       # ---------------------------------------------------------

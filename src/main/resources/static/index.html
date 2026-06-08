@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scenario Quality Checker</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Scenario Quality Checker</h1>
+      <p class="subtitle">REST analysis workspace</p>
+    </div>
+    <div id="statusBadge" class="status-badge">Ready</div>
+  </header>
+
+  <main class="layout">
+    <section class="panel input-panel">
+      <div class="panel-header">
+        <h2>Scenario</h2>
+        <div class="actions">
+          <button id="sampleButton" type="button">Sample</button>
+          <button id="clearButton" type="button" class="secondary">Clear</button>
+        </div>
+      </div>
+
+      <textarea id="scenarioInput" spellcheck="false" aria-label="Scenario JSON"></textarea>
+
+      <div class="options-grid" aria-label="Analysis options">
+        <label><input id="includeTotalStepCount" type="checkbox" checked> Total steps</label>
+        <label><input id="includeKeywordStepCount" type="checkbox" checked> Keyword steps</label>
+        <label><input id="includeStepsWithoutActors" type="checkbox" checked> Missing actors</label>
+        <label><input id="includeNumberedScenario" type="checkbox" checked> Numbered text</label>
+        <label><input id="includeLimitedScenario" type="checkbox" checked> Limited scenario</label>
+        <label><input id="includeInvalidSteps" type="checkbox" checked> Invalid steps</label>
+      </div>
+
+      <label class="depth-control" for="maxDepth">
+        Max depth
+        <input id="maxDepth" type="number" min="0" step="1" value="0">
+      </label>
+
+      <div class="primary-actions">
+        <button id="analyzeButton" type="button" class="primary">Analyze</button>
+        <button id="textButton" type="button" class="secondary">Download text</button>
+      </div>
+    </section>
+
+    <section class="panel results-panel">
+      <div class="panel-header">
+        <h2>Results</h2>
+        <span id="httpStatus" class="muted">No request</span>
+      </div>
+
+      <div class="metrics">
+        <div>
+          <span>Total</span>
+          <strong id="totalStepCount">-</strong>
+        </div>
+        <div>
+          <span>Keywords</span>
+          <strong id="keywordStepCount">-</strong>
+        </div>
+        <div>
+          <span>Missing actors</span>
+          <strong id="missingActorCount">-</strong>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Result view">
+        <button class="tab active" type="button" data-tab="summary">Summary</button>
+        <button class="tab" type="button" data-tab="text">Text</button>
+        <button class="tab" type="button" data-tab="json">JSON</button>
+      </div>
+
+      <div id="summaryTab" class="tab-panel">
+        <h3>Warnings</h3>
+        <ul id="warningsList" class="list"></ul>
+        <h3>Steps without actors</h3>
+        <ul id="stepsWithoutActorsList" class="list"></ul>
+      </div>
+
+      <div id="textTab" class="tab-panel hidden">
+        <pre id="textualScenario" class="result-block"></pre>
+      </div>
+
+      <div id="jsonTab" class="tab-panel hidden">
+        <pre id="jsonResult" class="result-block"></pre>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
