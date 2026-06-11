@@ -38,9 +38,11 @@ const statusBadge = document.getElementById("statusBadge");
 const httpStatus = document.getElementById("httpStatus");
 const analyzeButton = document.getElementById("analyzeButton");
 const textButton = document.getElementById("textButton");
+const jsonFileInput = document.getElementById("jsonFileInput");
 
 document.getElementById("sampleButton").addEventListener("click", loadSample);
 document.getElementById("clearButton").addEventListener("click", clearInput);
+jsonFileInput.addEventListener("change", handleJsonFileInput);
 analyzeButton.addEventListener("click", analyzeScenario);
 textButton.addEventListener("click", downloadText);
 
@@ -77,6 +79,26 @@ function readOptions() {
   });
   options.maxDepth = Number.parseInt(document.getElementById("maxDepth").value, 10) || 0;
   return options;
+}
+
+function handleJsonFileInput(event) {
+  const file = event.target.files[0];
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      scenarioInput.value = JSON.stringify(parsed, null, 2);
+      renderEmptyState();
+    } catch (error) {
+      renderError(error);
+    }
+  };
+  reader.onerror = () => renderError(new Error("Unable to read the selected file."));
+  reader.readAsText(file);
 }
 
 async function analyzeScenario() {

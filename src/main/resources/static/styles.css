@@ -149,6 +149,26 @@ button:disabled {
   opacity: 0.6;
 }
 
+.file-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.file-loader:hover {
+  border-color: #aab5a5;
+}
+
+.file-loader input {
+  display: none;
+}
+
 .primary {
   border-color: var(--accent);
   background: var(--accent);
