@@ -151,4 +151,60 @@ public class SQCControllerTest {
         assertThat(response.getBody().getStatus()).isEqualTo(ResponseStatus.INPUT_ERROR);
         verifyNoInteractions(sqc);
     }
+
+    @Test
+    void analyzeWithMultipleStepsAndKeywords() {
+        ScenarioOptions options = new ScenarioOptions(true, true, true, true, false, false, 0);
+        Scenario scenario = new Scenario("Test", List.of("Actor1"), List.of("System"), new Step());
+        ScenarioWrapper payload = new ScenarioWrapper(scenario, options);
+
+        AnalysisResponse mockResponse = AnalysisResponse.builder()
+                .status(ResponseStatus.SUCCESS)
+                .totalStepCount(5)
+                .keywordStepCount(2)
+                .build();
+
+        when(sqc.analyze(payload)).thenReturn(mockResponse);
+
+        ResponseEntity<AnalysisResponse> response = controller.analyze(payload);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getTotalStepCount()).isEqualTo(5);
+        assertThat(response.getBody().getKeywordStepCount()).isEqualTo(2);
+        verify(sqc).analyze(payload);
+    }
+
+    @Test
+    void analyzeTextReturnsCorrectContentDispositionHeader() {
+        ScenarioOptions options = new ScenarioOptions(null, null, null, null, null, null, null);
+        Scenario scenario = new Scenario("Scenario", List.of("Actor"), List.of("System"), new Step());
+        ScenarioWrapper payload = new ScenarioWrapper(scenario, options);
+
+        String textContent = "1. Actor does action\n2. System responds";
+        when(sqc.analyzeToText(payload)).thenReturn(textContent);
+
+        ResponseEntity<String> response = controller.analyzeText(payload);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(textContent);
+        assertThat(response.getHeaders().get(HttpHeaders.CONTENT_DISPOSITION))
+                .containsExactly("attachment; filename=\"scenario.txt\"");
+        verify(sqc).analyzeToText(payload);
+    }
+
+    @Test
+    void analyzeMultipleCallsToSqcVerifyInvocations() {
+        ScenarioOptions options = new ScenarioOptions(null, null, null, null, null, null, null);
+        Scenario scenario = new Scenario("Test", List.of("User"), List.of("App"), new Step());
+        ScenarioWrapper payload = new ScenarioWrapper(scenario, options);
+
+        AnalysisResponse response1 = AnalysisResponse.builder().status(ResponseStatus.SUCCESS).build();
+        when(sqc.analyze(payload)).thenReturn(response1);
+
+        controller.analyze(payload);
+        controller.analyze(payload);
+
+        verify(sqc, times(2)).analyze(payload);
+        assertThat(response1.getStatus()).isEqualTo(ResponseStatus.SUCCESS);
+    }
 }

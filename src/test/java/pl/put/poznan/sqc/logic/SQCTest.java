@@ -123,4 +123,49 @@ class SQCTest {
         step.setSubSteps(subSteps);
         return step;
     }
+
+    @Test
+    void returnsNoDepthLimitWhenMaxDepthIsZero() {
+        ScenarioWrapper wrapper = new ScenarioWrapper(
+                sampleScenario(),
+                new ScenarioOptions(false, false, false, false, true, false, 0)
+        );
+
+        AnalysisResponse response = sqc.analyze(wrapper);
+
+        Step topLevelStep = response.getLimitedScenario().rootStep().getSubSteps().get(0);
+        Step directSubScenario = topLevelStep.getSubSteps().get(0);
+        Step deepestStep = directSubScenario.getSubSteps().get(0);
+        
+        assertThat(topLevelStep.getText()).isEqualTo("Librarian starts scenario");
+        assertThat(directSubScenario.getText()).isEqualTo("IF: Librarian chooses copies");
+        assertThat(deepestStep.getText()).isEqualTo("System confirms copy");
+    }
+
+    @Test
+    void includesKeywordAndActorInTextualScenario() {
+        ScenarioWrapper wrapper = new ScenarioWrapper(
+                sampleScenario(),
+                new ScenarioOptions(false, false, false, true, false, false, 0)
+        );
+
+        AnalysisResponse response = sqc.analyze(wrapper);
+
+        assertThat(response.getTextualScenario()).isNotNull();
+        assertThat(response.getTextualScenario()).isNotEmpty();
+        assertThat(response.getTextualScenario().get(0)).contains("Librarian");
+    }
+
+    @Test
+    void countStepsExcludesRootStep() {
+        ScenarioWrapper wrapper = new ScenarioWrapper(
+                sampleScenario(),
+                new ScenarioOptions(true, false, false, false, false, false, 0)
+        );
+
+        AnalysisResponse response = sqc.analyze(wrapper);
+
+        assertThat(response.getTotalStepCount()).isEqualTo(3);
+        assertThat(response.getTotalStepCount()).isGreaterThan(0);
+    }
 }
